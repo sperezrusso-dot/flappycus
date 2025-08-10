@@ -21,7 +21,7 @@
 <div class="btns"><button id="pauseBtn">Pausar</button><button id="restartBtn">Reiniciar</button></div>
 <div id="overlay"><div class="card"><h1>Flappy “Curriculum Vitae” — SAL (Sprites)</h1>
 <div>Toque para saltar. Esquive hojas <b>Curriculum Vitae</b> (y algunas palas). Junte la bolsita <b>SAL</b> para sumar vida.</div>
-<div style="opacity:.8;margin-top:8px">Los ojos del personaje siguen la SAL. Al agarrarla se ponen más locos por 1s.</div>
+<div style="opacity:.8;margin-top:8px">Los ojos del personaje siguen la SAL. Al agarrarla se descontrolan y se agitan por 2s.</div>
 <div style="text-align:center;margin-top:12px"><button id="startBtn">Jugar</button></div></div></div>
 <script>
 const GRAV=0.5, FLAP=-8.6, SCROLL=3.0, GAP=160, DIST=220, COL_W=92, INV=900, MAXL=3;
@@ -66,14 +66,33 @@ function cvsheet(xp,t,shovel=false){ const by=t+GAP*DPR;
 function drawSalt(b){ const r=b.r; x.save(); x.translate(b.x,b.y); x.rotate(Math.sin(performance.now()/300+b.spin)*0.15);
   if(IMG_SALT.complete) x.drawImage(IMG_SALT,-64*DPR,-64*DPR,128*DPR,128*DPR); else { x.fillStyle='#fff'; x.fillRect(-r,-r,r*2,r*2); } x.restore(); }
 function nearestSalt(x0,y0){ let best=null,bd=1e12; for(const b of salts){ if(b.t) continue; const d=(x0-b.x)*(x0-b.x)+(y0-b.y)*(y0-b.y); if(d<bd){bd=d;best=b;} } return best; }
-function drawPlayer(){ const w=pl.w,h=pl.h, px=pl.x-w/2, py=pl.y-h/2; 
-  x.save(); x.translate(pl.x,pl.y); x.rotate(pl.a); x.translate(-w/2,-h/2);
-  if(IMG_FACE.complete) x.drawImage(IMG_FACE,0,0,w,h); else { x.fillStyle='#ffd6a0'; x.fillRect(0,0,w,h); } x.restore();
-  const t=nearestSalt(pl.x,pl.y), pts=pupilCenters(px,py,w,h);
-  let dir={x:0.18*Math.max(w,h), y:0.06*Math.max(w,h)}; if(t){ const dx=t.x-pl.x, dy=t.y-pl.y; const len=Math.hypot(dx,dy)||1; const k=0.18*Math.max(w,h); dir={x:(dx/len)*k, y:(dy/len)*k}; }
-  const frenzy=performance.now()<frenzyUntil, shake=frenzy?Math.sin(performance.now()/40)*2*DPR:0, pr=(frenzy?10:8)*DPR;
-  x.fillStyle='#000'; x.beginPath(); x.arc(pts[0].x+dir.x+shake, pts[0].y+dir.y, pr, 0, Math.PI*2); x.arc(pts[1].x+dir.x+shake, pts[1].y+dir.y, pr, 0, Math.PI*2); x.fill();
-  x.fillStyle='#fff'; x.beginPath(); x.arc(pts[0].x+dir.x-3*DPR+shake, pts[0].y+dir.y-3*DPR, 2.5*DPR, 0, Math.PI*2); x.arc(pts[1].x+dir.x-3*DPR+shake, pts[1].y+dir.y-3*DPR, 2.5*DPR, 0, Math.PI*2); x.fill();
+function drawPlayer(){
+  const w=pl.w, h=pl.h;
+  const t=performance.now();
+  const frenzy=t<frenzyUntil;
+  const jx=frenzy?Math.sin(t/30)*8*DPR:0, jy=frenzy?Math.cos(t/30)*8*DPR:0;
+  const rot=frenzy?Math.sin(t/20)*0.5:0;
+  x.save();
+  x.translate(pl.x+jx, pl.y+jy);
+  x.rotate(pl.a+rot);
+  x.translate(-w/2,-h/2);
+  if(IMG_FACE.complete) x.drawImage(IMG_FACE,0,0,w,h); else { x.fillStyle='#ffd6a0'; x.fillRect(0,0,w,h); }
+  x.restore();
+  const px=pl.x+jx-w/2, py=pl.y+jy-h/2;
+  const target=nearestSalt(pl.x,pl.y), pts=pupilCenters(px,py,w,h);
+  let dir={x:0.18*Math.max(w,h), y:0.06*Math.max(w,h)};
+  if(target){ const dx=target.x-pl.x, dy=target.y-pl.y; const len=Math.hypot(dx,dy)||1; const k=0.18*Math.max(w,h); dir={x:(dx/len)*k, y:(dy/len)*k}; }
+  const shake=frenzy?Math.sin(t/40)*4*DPR:0, pr=(frenzy?12:8)*DPR;
+  x.fillStyle=frenzy?'#d00':'#000';
+  x.beginPath();
+  x.arc(pts[0].x+dir.x+shake, pts[0].y+dir.y+shake, pr, 0, Math.PI*2);
+  x.arc(pts[1].x+dir.x+shake, pts[1].y+dir.y+shake, pr, 0, Math.PI*2);
+  x.fill();
+  x.fillStyle='#fff';
+  x.beginPath();
+  x.arc(pts[0].x+dir.x-3*DPR+shake, pts[0].y+dir.y-3*DPR+shake, 2.5*DPR, 0, Math.PI*2);
+  x.arc(pts[1].x+dir.x-3*DPR+shake, pts[1].y+dir.y-3*DPR+shake, 2.5*DPR, 0, Math.PI*2);
+  x.fill();
 }
 function loop(ts){ if(!run||pause) return; const dt=(ts-last)/16.6667; last=ts;
   pl.vy+=GRAV*DPR; pl.y+=pl.vy; pl.a=Math.atan2(pl.vy,10*DPR); if(pl.y<pl.r){pl.y=pl.r; pl.vy=0;} if(pl.y>H-pl.r) hit();
@@ -81,7 +100,7 @@ function loop(ts){ if(!run||pause) return; const dt=(ts-last)/16.6667; last=ts;
   if(cols[0]&&cols[0].x+COL_W*DPR<-20*DPR){ cols.shift(); const lx=cols[cols.length-1].x; addCol(lx+DIST*DPR); if(Math.random()<.55) addSalt(lx+DIST*DPR+COL_W*DPR+Math.random()*40*DPR); }
   for(const co of cols){ if(!co.pass && co.x+COL_W*DPR<pl.x){co.pass=1; score++; sEl.textContent=score;} const by=co.top+GAP*DPR;
     if(coll(pl.x,pl.y,pl.r, co.x,0,COL_W*DPR,co.top) || coll(pl.x,pl.y,pl.r, co.x,by,COL_W*DPR,H-by)){ if(ts>pl.inv) hit(); } }
-  for(const b of salts){ if(!b.t && d2(pl.x,pl.y,b.x,b.y)<(pl.r+b.r)*(pl.r+b.r)){ b.t=1; pl.l=Math.min(MAXL,pl.l+1); lEl.textContent=pl.l; frenzyUntil=performance.now()+1000; } }
+  for(const b of salts){ if(!b.t && d2(pl.x,pl.y,b.x,b.y)<(pl.r+b.r)*(pl.r+b.r)){ b.t=1; pl.l=Math.min(MAXL,pl.l+1); lEl.textContent=pl.l; frenzyUntil=performance.now()+2000; } }
   bg(); for(const co of cols) cvsheet(co.x,co.top,co.shovel); for(const b of salts) if(!b.t) drawSalt(b); drawPlayer(); requestAnimationFrame(loop); }
 function hit(){ pl.l--; lEl.textContent=pl.l; pl.inv=performance.now()+INV; pl.vy=-4*DPR; if(pl.l<0) gameOver(); }
 function gameOver(){ run=0; ov.style.display='flex'; ov.querySelector('h1').textContent='Game Over'; }
